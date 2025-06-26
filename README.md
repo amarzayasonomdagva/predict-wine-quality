@@ -22,3 +22,9 @@ So, interestingly, the tree model is not able to identify the worst wine perhaps
 
 ## Conclusion:
 The accuracy level for all three models are pretty similar to each other, so I will have to make a decision weighing the costs and benefits of each one. I think I will choose LDA. kNN is very sensitive to tuning and it doesnt help that we have variables that have non-linear relationships and are clustered on one side. Also, our data is heavily skewed as we have way more okay wines than worst or best, which will certainly affect the predictions. For tree classification, the worst type of wine is not being captured which makes me believe its not a good option. Instead, I think LDA will help us lessen the dominance of okay wines, especially because it relies on probability distributions. I decided not to use threshold like I did earlier because we only care about the top 10 or worst 10 wines.
+
+### Files
+
+- [HTML Report](Homework%202-%20STATS%200218%20copy.html)
+- [Quarto Code (QMD)](Homework%202-%20STATS%200218.qmd)
+

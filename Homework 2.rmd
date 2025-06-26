@@ -1,0 +1,205 @@
+---
+title: "Homework 2 - Data Science"
+execute: 
+  warning: false
+format: pdf
+editor: visual
+---
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(rvest)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+Question 1a.
+
+Scraping paragraphs, headers, and tables from the website.
+
+```{r}
+mission_report_unclean <- read_html("https://vermontgreenfc.com/seasons/2023-mission-report/") |>
+  html_elements("p, h1, table") |>
+  html_text() |>
+  data.frame()
+```
+
+First stage of cleaning the dataset by excluding irrelevant information.
+
+```{r}
+mission_report_clean1 <-
+  mission_report_unclean |>
+  slice(seq(from = 1, to = 87))
+
+
+write_csv(mission_report_clean1, "mission_report_clean1.csv")  
+```
+
+Renaming the unnecessary long column name to a simple one.
+
+```{r}
+colnames(mission_report_clean1) <- c("texts")
+```
+
+Filtering words out by stop words and obvious words that are related to vgfc.
+
+```{r}
+mission_report_clean2 <-
+  mission_report_clean1 |>
+  unnest_tokens(input = texts,
+                output = "word") |>
+  count(word) |>
+  arrange(-n) |>
+  filter(!(word %in% stop_words$word), !(word %in% c("vermont", "club", "green","fc",
+                                                  "soccer", "season", "2023")),
+         !is.na(word))
+     
+```
+
+Question 1b. making a graph of the top 25 meaningful words.
+
+```{r}
+mission_report_clean2 |>
+  head(25) |>
+  ggplot() +
+  geom_col(aes(x = n, y = reorder(word,n))) +
+  labs(x = "The number of repetitions",y = "Top words by order")
+
+```
+
+Question 1c. producing a word cloud of the most commonly used words.
+
+```{r}
+wordcloud(mission_report_clean2$word,
+          freq = mission_report_clean2$n,
+          random.order = FALSE,
+          scale = c(2, 0.6),
+          colors = brewer.pal(10, "Spectral"))
+```
+
+VGFC DATASET: Activists
+
+```{r}
+
+VGFC_data <- read_csv("~/Downloads/VGFC_full_dataset_final_2025-01-10 (1).csv")
+
+vgfc_data_clean <- VGFC_data |>
+  filter(progress > 90, duration_seconds >300)
+```
+
+Question 2a. Identify levels of activism
+
+a1) Explain here in your own words what the code shown above does. The code that Cosette gave us creates new rows in the dataset, called total_have_done, total_might_do, total_would_never, and total_prefer_not_to_answer. Each new respective row searches each row that starts with political \_action and counts the number of "Have done", "Might do", "Would never do", and NAs and assign values to each row, so we can see how each participant answered the political action questions. Rowwise lets the mutation take place row by row.
+
+a2) Categorize respondents into the four separate groups described.
+
+```{r}
+vgfc_data_clean_paction <-
+  vgfc_data_clean |>
+  rowwise() |>
+  mutate(
+  total_have_done = sum(c_across(starts_with("political_action")) 
+                      == "Have done", na.rm = TRUE),
+  total_might_do = sum(c_across(starts_with("political_action")) 
+                       == "Might do", na.rm = TRUE),
+  total_would_never = sum(c_across(starts_with("political_action")) 
+                      == "Would never do", na.rm = TRUE),
+  total_prefer_not_to_answer = sum(is.na(c_across(starts_with("political_action"))
+                    ))) #assuming that the NA values correspond to prefer not to answer 
+
+vgfc_data_clean_pactiongroup <- 
+  vgfc_data_clean_paction |>
+  mutate(political_action = case_when(total_have_done >= 5 ~ "Activists",
+         total_have_done >= 3 & total_have_done<5 ~ "Occasional Activists",
+         total_have_done <3 & (total_might_do+total_have_done) >=4 
+         ~ "Potential Supporters",
+         total_would_never >=6 ~ "Passive"))
+```
+
+b)  Graph levels of activism.
+
+```{r}
+vgfc_data_clean_pactiongroup |> #wonder why there are still NAs here
+   filter(!is.na(political_action)) |>
+   count(political_action) |>
+    ggplot() +
+    geom_col(aes(y=n, x = political_action)) +
+    labs(y= "The number of respondents", x = "Level of Activism")
+```
+
+c)  Level of activism X change belief c1) Hypothesize activism level X change belief I am choosing the variable "changebelief_politics". To be honest, this will be very interesting to see across different activist groups. I think that passive respondents are likely to see a higher chance of seeing politics as the main driver for climate protection as it may suggest that they shift the responsibility towards the government and turns it away from the individual. However, I do not expect activists to have the reverse relationship because they may be motivated to pressure the politicians since they hold the power to establish rules and laws in society. I think it can go any way.
+
+c2) Graph: Activism X change belief
+
+```{r}
+vgfc_data_clean_pactiongroup |> 
+  filter(!is.na(political_action)) |>
+  filter(!is.na(changebelief_politics)) |>
+   count(political_action, changebelief_politics) |>
+    ggplot() +
+    geom_col(aes(x=n, y = political_action, 
+                 fill =changebelief_politics),
+             position = "fill") +
+    labs( x= "The ratio of respondents", y = "Level of Activism", fill = "Politics/Climate Protection")
+
+```
+
+Question 3.Creating a ‘Change Agency’ index.
+
+3a) Create the index and the index score for each respondent
+
+-   Creating the index across four variables
+
+```{r}
+vgfc_data_clean_pactiongroup_recoded <- 
+  vgfc_data_clean_pactiongroup |>
+  mutate(
+    changebelief_individuals_recoded = case_match(
+      changebelief_individuals, "Strongly agree"~4, "Somewhat agree"~3, 
+      "Somewhat disagree"~2, "Strongly disagree"~1)) |>
+  mutate(
+    changebelief_voters_recoded = case_match(
+      changebelief_voters, "Strongly agree"~4, "Somewhat agree"~3, 
+      "Somewhat disagree"~2, "Strongly disagree"~1)) |>
+  mutate(
+    changebelief_environ_orgs_recoded = case_match(
+      changebelief_environ_orgs, "Strongly agree"~4, "Somewhat agree"~3, 
+      "Somewhat disagree"~2, "Strongly disagree"~1)) |>
+  mutate(
+    changebelief_local_recoded = case_match(
+      changebelief_local, "Strongly agree"~4, "Somewhat agree"~3, 
+      "Somewhat disagree"~2, "Strongly disagree"~1)) 
+```
+
+-   Finding the mean score for each respondent for the new column (change_agency_belief)
+
+```{r}
+#Option 1.
+vgfc_data_clean_pactiongroup_recoded_mean <- 
+vgfc_data_clean_pactiongroup_recoded |>
+  mutate(change_agency_belief = 
+               (changebelief_individuals_recoded + changebelief_voters_recoded +
+               changebelief_environ_orgs_recoded + changebelief_local_recoded)/4) 
+
+#Option 2.
+ vgfc_data_clean_pactiongroup_recoded_mean2 <- vgfc_data_clean_pactiongroup_recoded |>
+  rowwise() |>
+  mutate(change_agency_belief2 = mean(c_across(contains("recoded"))))  
+
+#Activism level vs Belief in Change Graph
+ vgfc_data_clean_pactiongroup_recoded_mean2 |> 
+   filter(!is.na(political_action)) |>
+   filter(!is.na(change_agency_belief2)) |>
+  group_by(political_action) |>
+  summarize(mean_agency = mean(change_agency_belief2)) |>
+  ggplot() +
+  geom_col(aes(y= mean_agency, x= political_action)
+          ) +
+  labs(x = "Level of Activism", y = "Belief in Change Agency")
+
+```

@@ -25,7 +25,7 @@ The accuracy level for all three models are pretty similar to each other, so I w
 
 ### Files
 
-- [PDF Report](Homework%202-%20STATS%200218%20copy.pdf)
+- [View the Report (PDF)](Homework2_Stats0218.pdf)
 - [HTML Report](Homework%202-%20STATS%200218%20copy.html)
 - [Quarto Code (QMD)](Homework%202-%20STATS%200218.qmd)
 
